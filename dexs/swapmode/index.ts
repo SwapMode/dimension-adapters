@@ -10,9 +10,7 @@ import type {
   BaseAdapter,
   BreakdownAdapter,
   ChainEndpoints,
-  FetchOptions,
   FetchResultV2,
-  FetchV2,
 } from "../../adapters/types";
 import type { Chain } from "@defillama/sdk/build/general";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
