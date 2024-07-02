@@ -1,13 +1,18 @@
-import { Balances, ChainApi, getEventLogs, getProvider } from '@defillama/sdk'
+import { Balances, ChainApi, getEventLogs, getProvider, elastic } from '@defillama/sdk'
 import { BaseAdapter, ChainBlocks, DISABLED_ADAPTER_KEY, Fetch, FetchGetLogsOptions, FetchOptions, FetchResultGeneric, FetchV2, } from '../types'
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphFees';
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
+function getUnixTimeNow() {
+  return Math.floor(Date.now() / 1000)
+}
+
 export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurrentDayTimestamp: number, chainBlocks: ChainBlocks, id?: string, version?: string, {
   adapterVersion = 1
 }: any = {}) {
+
   const closeToCurrentTime = Math.trunc(Date.now() / 1000) - cleanCurrentDayTimestamp < 24 * 60 * 60 // 12 hours
   const chains = Object.keys(volumeAdapter).filter(c => c !== DISABLED_ADAPTER_KEY)
   const validStart = {} as {
@@ -18,9 +23,19 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
   }
   await Promise.all(chains.map(setChainValidStart))
 
-  return Promise.all(chains.filter(chain => validStart[chain]?.canRun).map(getChainResult))
+  const response = await Promise.all(chains.filter(chain => validStart[chain]?.canRun).map(getChainResult))
+  return response
 
   async function getChainResult(chain: string) {
+    const startTime = getUnixTimeNow()
+    const metadata = {
+      application: "dimensions",
+      type: 'protocol-chain',
+      name: id,
+      chain,
+      version,
+    }
+
     const fetchFunction = volumeAdapter[chain].customBackfill ?? volumeAdapter[chain].fetch
     try {
       const options = await getOptionsObject(cleanCurrentDayTimestamp, chain, chainBlocks)
@@ -47,13 +62,25 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
         result[key] = +Number(result[key]).toFixed(0)
         if (isNaN(result[key] as number)) throw new Error(`[${chain}]Value: ${value} ${key} is NaN`)
       }
+
+      const endTime = getUnixTimeNow()
+      await elastic.addRuntimeLog({ runtime: endTime - startTime, success: true, metadata, })
+
       return {
         chain,
         startTimestamp: validStart[chain].startTimestamp,
         ...result
       }
     } catch (error) {
-      try { (error as any).chain = chain } catch { }
+
+      const endTime = getUnixTimeNow()
+
+      try {
+        await elastic.addErrorLog({ error, metadata, errorString: error?.toString(), } as any)
+        await elastic.addRuntimeLog({ runtime: endTime - startTime, success: false, metadata, });
+
+        (error as any).chain = chain
+      } catch { }
       throw error
     }
   }
@@ -63,7 +90,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const createBalances: () => Balances = () => {
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain })
     }
-    const toTimestamp = timestamp
+    const toTimestamp = timestamp - 1
     const fromTimestamp = toTimestamp - ONE_DAY_IN_SECONDS
     const fromChainBlocks = {}
     const getFromBlock = async () => await getBlock(fromTimestamp, chain, fromChainBlocks)
@@ -88,7 +115,7 @@ export default async function runAdapter(volumeAdapter: BaseAdapter, cleanCurren
     const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
     const startOfDay = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
     const startTimestamp = fromTimestamp
-    const endTimestamp = toTimestamp
+    const endTimestamp = toTimestamp + 1
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api
