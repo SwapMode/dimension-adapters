@@ -18,11 +18,11 @@ import { GraphQLClient, gql } from "graphql-request";
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.MODE]:
-    "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/swapmode-v2/1.0.4/gn",
+    "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/swapmode-v2/prod/gn",
 };
 const v3Endpoints = {
   [CHAIN.MODE]:
-    "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/swapmode-v3/1.0.0/gn",
+    "https://api.goldsky.com/api/public/project_cltceeuudv1ij01x7ekxhfl46/subgraphs/swapmode-v3/prod/gn",
 };
 
 // Fetch function to query the subgraphs
@@ -65,8 +65,10 @@ const v3Graphs = getGraphDimensions({
   },
 });
 
-const graphQLClient = new GraphQLClient("https://api-backend-0191c757fded.herokuapp.com/graphql");
+// const graphQLClient = new GraphQLClient("https://api-backend-0191c757fded.herokuapp.com/graphql");
+const graphQLClient = new GraphQLClient("http://localhost:5000/graphql");
 const getStakingData = async (chainId: number): Promise<FetchResultV2> => {
+try {
   const data: any = await graphQLClient.request(
     gql`
       query GetStakingTVL($chainId: Int!) {
@@ -83,6 +85,12 @@ const getStakingData = async (chainId: number): Promise<FetchResultV2> => {
   return {
     tvl: data.getStakingTVL.tvlNum.toString(),
   };
+} catch (error) {
+  console.log(error)
+  return {
+    tvl: "0"
+  }
+}
 };
 
 const v2Methodology = {
@@ -109,7 +117,7 @@ const adapter: BreakdownAdapter = {
         ...acc,
         [chain]: {
           fetch: v2Graph(chain as Chain),
-          start: 1706818021,
+          start: 3325219,
           customBackfill: customBackfill(chain, v2Graph),
           meta: { methodology: v2Methodology },
         },
@@ -118,7 +126,7 @@ const adapter: BreakdownAdapter = {
     v3: Object.keys(v3Endpoints).reduce((acc, chain) => {
       acc[chain] = {
         fetch: v3Graphs(chain as Chain),
-        start: 1710177917,
+        start: 5005167, 
         meta: {
           methodology: v3Methodology,
         },
@@ -130,7 +138,7 @@ const adapter: BreakdownAdapter = {
         fetch: () => {
           return getStakingData(34443);
         },
-        start: 1710177917,
+        start: 3325219,
         meta: {
           methodology:
             "Staking acoounts for SMD and xSMD deposited in staking pools. As well as xSMD allocated to the Yield Booster for LP positions",
