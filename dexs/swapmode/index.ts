@@ -10,11 +10,9 @@ import type {
   BaseAdapter,
   BreakdownAdapter,
   ChainEndpoints,
-  FetchResultV2,
 } from "../../adapters/types";
 import type { Chain } from "@defillama/sdk/build/general";
 import { getGraphDimensions } from "../../helpers/getUniSubgraph";
-import { GraphQLClient, gql } from "graphql-request";
 
 const v2Endpoints: ChainEndpoints = {
   [CHAIN.MODE]:
@@ -65,32 +63,6 @@ const v3Graphs = getGraphDimensions({
   },
 });
 
- const graphQLClient = new GraphQLClient("https://api-backend-0191c757fded.herokuapp.com/graphql");
-const getStakingData = async (chainId: number): Promise<FetchResultV2> => {
-try {
-  const data: any = await graphQLClient.request(
-    gql`
-      query GetStakingTVL($chainId: Int!) {
-        getStakingTVL(chainId: $chainId) {
-          tvlNum
-        }
-      }
-    `,
-    {
-      chainId,
-    }
-  );
-
-  return {
-    tvl: data.getStakingTVL.tvlNum.toString(),
-  };
-} catch (error) {
-  console.log(error)
-  return {
-    tvl: "0"
-  }
-}
-};
 
 const v2Methodology = {
   UserFees: "User pays 0.3% fees on each swap.",
@@ -131,19 +103,7 @@ const adapter: BreakdownAdapter = {
         },
       };
       return acc;
-    }, {} as BaseAdapter),
-    staking: {
-      [CHAIN.MODE]: {
-        fetch: () => {
-          return getStakingData(34443);
-        },
-        start: 3325219,
-        meta: {
-          methodology:
-            "Staking accounts for SMD and xSMD deposited in staking pools. As well as xSMD allocated to the Yield Booster for LP positions",
-        },
-      },
-    },
+    }, {} as BaseAdapter)
   },
 };
 
