@@ -65,8 +65,7 @@ const v3Graphs = getGraphDimensions({
   },
 });
 
-// const graphQLClient = new GraphQLClient("https://api-backend-0191c757fded.herokuapp.com/graphql");
-const graphQLClient = new GraphQLClient("http://localhost:5000/graphql");
+ const graphQLClient = new GraphQLClient("https://api-backend-0191c757fded.herokuapp.com/graphql");
 const getStakingData = async (chainId: number): Promise<FetchResultV2> => {
 try {
   const data: any = await graphQLClient.request(
@@ -141,7 +140,7 @@ const adapter: BreakdownAdapter = {
         start: 3325219,
         meta: {
           methodology:
-            "Staking acoounts for SMD and xSMD deposited in staking pools. As well as xSMD allocated to the Yield Booster for LP positions",
+            "Staking accounts for SMD and xSMD deposited in staking pools. As well as xSMD allocated to the Yield Booster for LP positions",
         },
       },
     },
